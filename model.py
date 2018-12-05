@@ -1,5 +1,5 @@
 import  torch
-from    torch import nn
+from    torch import nn, optim
 from    torch.nn import functional as F
 import  math
 from    utils import Reshape, Flatten, ResBlk
@@ -135,6 +135,9 @@ class IntroVAE(nn.Module):
         self.beta = 1
         self.margin = 125
 
+        self.optim_encoder = optim.Adam(self.encoder.parameters(), lr=1e-3)
+        self.optim_decoder = optim.Adam(self.decoder.parameters(), lr=1e-3)
+
     def reparametrization(self, z_):
         """
 
@@ -217,7 +220,17 @@ class IntroVAE(nn.Module):
         decoder_loss = self.alpha * decoder_l1 + self.beta * loss_ae2
 
 
-        return encoder_loss, decoder_loss
+        self.optim_encoder.zero_grad()
+        encoder_loss.backward()
+        self.optim_encoder.step()
+
+        self.optim_decoder.zero_grad()
+        decoder_loss.backward()
+        self.optim_decoder.step()
+
+
+
+        print(encoder_loss.item(), decoder_loss.item(), loss_ae.item(), loss_ae2.item())
 
 
 

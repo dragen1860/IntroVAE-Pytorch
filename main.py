@@ -38,6 +38,8 @@ def main():
         # print(x.shape, label)
         # print(db.class_to_idx)
 
+        vae(x)
+
 
 
 
