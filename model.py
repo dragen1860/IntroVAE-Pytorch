@@ -240,62 +240,54 @@ class IntroVAE(nn.Module):
 
     def forward(self, x):
         """
-
+        The notation used here all come from Algorithm 1, page 6 of official paper.
         :param x: [b, 3, 1024, 1024]
         :return:
         """
+        # 1. auto-encoder pipeline
         # x => z_ae_ => z_ae, mu_ae, log_sigma^2_ae => x_ae
         # get reconstructed z
-        z_ae_ = self.encoder(x)
+        z_ = self.encoder(x)
         # sample from z_r_
-        z_ae, mu_ae, log_sigma2_ae = self.reparametrization(z_ae_)
+        z, mu, log_sigma2 = self.reparametrization(z_)
         # get reconstructed x
-        x_ae = self.decoder(z_ae)
+        xr = self.decoder(z)
+        zp = torch.randn_like(z)
+        xp = self.decoder(zp)
 
+        loss_ae = F.mse_loss(xr, x)
 
-        # z_r => x_r => z_r_ => z_r_hat, mu_r_hat, log_sigma2_r_hat
-        z_r = z_ae.detach()
-        x_r = self.decoder(z_r)
-        z_r_ = self.encoder(x_r)
-        z_r_hat, mu_r_hat, log_sigma2_r_hat = self.reparametrization(z_r_)
-
-        # z_r => x_r.detach() => z_r_ng_ => z_r_ng, mu_r_ng, log_sigma2_r_ng
-        z_r_ng_ = self.encoder(x_r.detach())
-        z_r_ng, mu_r_ng, log_sigma2_r_ng = self.reparametrization(z_r_ng_)
-
-        # z_p => x_p => z_p_ => z_p_hat, mu_p_hat, log_sigma^2_p_hat
-        # sample from normal dist by shape of z_r
-        z_p = torch.randn_like(z_ae)
-        x_p = self.decoder(z_p)
-        z_p_ = self.encoder(x_p)
-        z_p_hat, mu_p_hat, log_sigma2_p_hat = self.reparametrization(z_p_)
-        # z_p => x_p.detach() => z_p_ng_ => z_p_ng, mu_p_ng, log_sigma2_p_ng
-        z_p_ng_ = self.encoder(x_p.detach())
-        z_p_ng, mu_p_ng, log_sigma2_p_ng = self.reparametrization(z_p_ng_)
-
-
-        reg_ae = self.kld(mu_ae, log_sigma2_ae)
-        reg_r_ng = self.kld(mu_r_ng, log_sigma2_r_ng)
-        reg_p_ng = self.kld(mu_p_ng, log_sigma2_p_ng)
-        reg_r_hat = self.kld(mu_r_hat, log_sigma2_r_hat)
-        reg_p_hat = self.kld(mu_p_hat, log_sigma2_p_hat)
-        loss_ae = F.mse_loss(x_ae, x)
-        loss_ae2 = F.mse_loss(x_r, x)
+        zr_ng_ = self.encoder(xr.detach())
+        zr_ng, mur_ng, log_sigma2r_ng =  self.reparametrization(zr_ng_)
+        regr_ng = self.kld(mur_ng, log_sigma2r_ng)
+        zpp_ng_ = self.encoder(xp.detach())
+        zpp_ng, mupp_ng, log_sigma2pp_ng = self.reparametrization(zpp_ng_)
+        regpp_ng = self.kld(mupp_ng, log_sigma2pp_ng)
 
 
         # by Eq.11, the 2nd term of loss
+        reg_ae = self.kld(mu, log_sigma2)
         # max(0, margin - l)
-        encoder_l2 = torch.clamp(self.margin - reg_p_ng, min=0) + torch.clamp(125 - reg_r_ng, min=0)
-        encoder_loss = reg_ae + self.alpha * encoder_l2 + self.beta * loss_ae
-
-        # by Eq.12, the 1st term of loss
-        decoder_l1 = reg_r_hat + reg_p_hat
-        decoder_loss = self.alpha * decoder_l1 + self.beta * loss_ae2
-
+        loss_adv = torch.clamp(self.margin - regr_ng, min=0) + torch.clamp(self.margin - regpp_ng, min=0)
+        encoder_loss = reg_ae + self.alpha * loss_adv + self.beta * loss_ae
 
         self.optim_encoder.zero_grad()
-        encoder_loss.backward()
+        encoder_loss.backward(retain_graph=True)
         self.optim_encoder.step()
+
+
+
+        zr_ = self.encoder(xr)
+        zr, mur, log_sigma2r = self.reparametrization(zr_)
+        regr = self.kld(mur, log_sigma2r)
+        zpp_ = self.encoder(xp)
+        zpp, mupp, log_sigma2pp = self.reparametrization(zpp_)
+        regpp = self.kld(mupp, log_sigma2pp)
+
+        # by Eq.12, the 1st term of loss
+        decoder_adv = regr + regpp
+        decoder_loss = self.alpha * decoder_adv + self.beta * loss_ae
+
 
         self.optim_decoder.zero_grad()
         decoder_loss.backward()
@@ -303,7 +295,7 @@ class IntroVAE(nn.Module):
 
 
 
-        print(encoder_loss.item(), decoder_loss.item(), loss_ae.item(), loss_ae2.item())
+        print(encoder_loss.item(), decoder_loss.item(), loss_ae.item())
 
 
 
