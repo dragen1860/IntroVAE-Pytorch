@@ -166,7 +166,7 @@ class Decoder(nn.Module):
 class IntroVAE(nn.Module):
 
 
-    def __init__(self, imgsz, z_dim):
+    def __init__(self, args):
         """
 
         :param imgsz:
@@ -174,6 +174,9 @@ class IntroVAE(nn.Module):
         h_dim to z_dim
         """
         super(IntroVAE, self).__init__()
+
+        imgsz = args.imgsz
+        z_dim = args.z_dim
 
 
         self.encoder = Encoder(imgsz, 32)
@@ -199,16 +202,25 @@ class IntroVAE(nn.Module):
         print('z_dim:', z_dim)
 
 
-        self.alpha = 1
-        self.beta = 1
-        self.margin = 125
+        self.alpha = args.alpha
+        self.beta = args.beta
+        self.margin = args.margin
         self.z_dim = z_dim
         self.h_dim = h_dim
 
-        self.optim_encoder = optim.Adam(self.encoder.parameters(), lr=1e-3)
-        self.optim_decoder = optim.Adam(self.decoder.parameters(), lr=1e-3)
+        self.optim_encoder = optim.Adam(self.encoder.parameters(), lr=args.lr)
+        self.optim_decoder = optim.Adam(self.decoder.parameters(), lr=args.lr)
 
 
+    def set_alph_beta(self, alpha, beta):
+        """
+        this func is for pre-training, to set alpha=0 to transfer to vilina vae.
+        :param alpha:
+        :param beta:
+        :return:
+        """
+        self.alpha = alpha
+        self.beta = beta
 
     def reparametrization(self, z_):
         """
@@ -219,8 +231,8 @@ class IntroVAE(nn.Module):
         mu, log_sigma2 = self.mu_net(z_), self.log_sigma2_net(z_)
         eps = torch.randn_like(log_sigma2)
         # reparametrization trick
-        # TODO
-        z = mu + torch.exp(log_sigma2 / 2) * eps
+        # mean + sigma * eps
+        z = mu + torch.exp(log_sigma2).sqrt() * eps
 
         return z, mu, log_sigma2
 
@@ -244,38 +256,44 @@ class IntroVAE(nn.Module):
         :param x: [b, 3, 1024, 1024]
         :return:
         """
-        # 1. auto-encoder pipeline
-        # x => z_ae_ => z_ae, mu_ae, log_sigma^2_ae => x_ae
-        # get reconstructed z
+
+        # 1. update encoder
         z_ = self.encoder(x)
-        # sample from z_r_
         z, mu, log_sigma2 = self.reparametrization(z_)
-        # get reconstructed x
         xr = self.decoder(z)
         zp = torch.randn_like(z)
         xp = self.decoder(zp)
 
         loss_ae = F.mse_loss(xr, x)
+        reg_ae = self.kld(mu, log_sigma2)
 
         zr_ng_ = self.encoder(xr.detach())
         zr_ng, mur_ng, log_sigma2r_ng =  self.reparametrization(zr_ng_)
         regr_ng = self.kld(mur_ng, log_sigma2r_ng)
+        # max(0, margin - l)
+        regr_ng = torch.clamp(self.margin - regr_ng, min=0)
         zpp_ng_ = self.encoder(xp.detach())
         zpp_ng, mupp_ng, log_sigma2pp_ng = self.reparametrization(zpp_ng_)
         regpp_ng = self.kld(mupp_ng, log_sigma2pp_ng)
-
-
-        # by Eq.11, the 2nd term of loss
-        reg_ae = self.kld(mu, log_sigma2)
         # max(0, margin - l)
-        loss_adv = torch.clamp(self.margin - regr_ng, min=0) + torch.clamp(self.margin - regpp_ng, min=0)
-        encoder_loss = reg_ae + self.alpha * loss_adv + self.beta * loss_ae
+        regpp_ng = torch.clamp(self.margin - regpp_ng, min=0)
 
+
+        encoder_adv = regr_ng + regpp_ng
+        encoder_loss = reg_ae + self.alpha * encoder_adv + self.beta * loss_ae
         self.optim_encoder.zero_grad()
-        encoder_loss.backward(retain_graph=True)
+        encoder_loss.backward()
         self.optim_encoder.step()
 
 
+        # 2. update decoder
+        z_ = self.encoder(x)
+        z, mu, log_sigma2 = self.reparametrization(z_)
+        xr = self.decoder(z)
+        zp = torch.randn_like(z)
+        xp = self.decoder(zp)
+
+        loss_ae = F.mse_loss(xr, x)
 
         zr_ = self.encoder(xr)
         zr, mur, log_sigma2r = self.reparametrization(zr_)
@@ -287,15 +305,13 @@ class IntroVAE(nn.Module):
         # by Eq.12, the 1st term of loss
         decoder_adv = regr + regpp
         decoder_loss = self.alpha * decoder_adv + self.beta * loss_ae
-
-
         self.optim_decoder.zero_grad()
         decoder_loss.backward()
         self.optim_decoder.step()
 
 
 
-        return encoder_loss, decoder_loss, loss_ae, xr, xp
+        return encoder_loss, decoder_loss, reg_ae, encoder_adv, decoder_adv, loss_ae, xr, xp
 
 
 
