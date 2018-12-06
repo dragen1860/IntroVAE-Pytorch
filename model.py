@@ -21,6 +21,7 @@ class Encoder(nn.Module):
 
         layers = [
             nn.Conv2d(3, ch, kernel_size=5, stride=1, padding=2),
+            nn.BatchNorm2d(ch),
             nn.ReLU(inplace=True),
             nn.AvgPool2d(2, stride=None, padding=0),
         ]
@@ -93,6 +94,7 @@ class Decoder(nn.Module):
         layers = [
             # z_dim => z_dim * 4 * 4 => [z_dim, 4, 4] => [z_dim, 4, 4]
             nn.Linear(z_dim, z_dim * mapsz * mapsz),
+            nn.BatchNorm1d(z_dim * mapsz * mapsz),
             nn.ReLU(inplace=True),
             Reshape(z_dim, mapsz, mapsz),
             ResBlk([3, 3], [z_dim, z_dim, z_dim])
@@ -208,6 +210,7 @@ class IntroVAE(nn.Module):
 
         self.alpha = args.alpha
         self.beta = args.beta
+        self.gamma = args.gamma
         self.margin = args.margin
         self.z_dim = z_dim
         self.h_dim = h_dim
@@ -216,15 +219,17 @@ class IntroVAE(nn.Module):
         self.optim_decoder = optim.Adam(self.decoder.parameters(), lr=args.lr)
 
 
-    def set_alph_beta(self, alpha, beta):
+    def set_alph_beta_gamma(self, alpha, beta, gamma):
         """
         this func is for pre-training, to set alpha=0 to transfer to vilina vae.
-        :param alpha:
-        :param beta:
+        :param alpha: for adversarial loss
+        :param beta: for reconstruction loss
+        :param gamma: for variational loss
         :return:
         """
         self.alpha = alpha
         self.beta = beta
+        self.gamma = gamma
 
     def reparametrization(self, z_):
         """
@@ -292,7 +297,7 @@ class IntroVAE(nn.Module):
 
 
         encoder_adv = regr_ng + regpp_ng
-        encoder_loss = reg_ae + self.alpha * encoder_adv + self.beta * loss_ae
+        encoder_loss = self.gamma * reg_ae + self.alpha * encoder_adv + self.beta * loss_ae
         self.optim_encoder.zero_grad()
         encoder_loss.backward()
         self.optim_encoder.step()

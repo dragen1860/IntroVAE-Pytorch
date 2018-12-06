@@ -53,13 +53,11 @@ class ResBlk(nn.Module):
 
         assert len(chs)-1 == len(kernels), "mismatching between chs and kernels"
 
-        # TODO:
-        # if K.int_shape(input_tensor[-1]) != filters[0]:
-
         for idx in range(len(chs)-1):
             layers.extend([
                 nn.Conv2d(chs[idx], chs[idx+1], kernel_size=kernels[idx], stride=1,
                           padding=1 if kernels[idx]!=1 else 0),
+                nn.BatchNorm2d(chs[idx+1]),
                 nn.ReLU(inplace=True)
             ])
 
@@ -69,6 +67,7 @@ class ResBlk(nn.Module):
         if chs[0] != chs[-1]:
             self.shortcut = nn.Sequential(
                 nn.Conv2d(chs[0], chs[-1], kernel_size=1),
+                nn.BatchNorm2d(chs[-1]),
                 nn.ReLU(inplace=True)
             )
 

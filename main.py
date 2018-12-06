@@ -20,6 +20,7 @@ import  visdom
 
 
 def main(args):
+    print(args)
 
     torch.manual_seed(22)
     np.random.seed(22)
@@ -47,7 +48,7 @@ def main(args):
     # pre-training
     print('>>pre-training...')
     epoch_start = 0
-    vae.set_alph_beta(0, args.beta)
+    vae.set_alph_beta_gamma(0, args.beta, 0)
     for _ in range(2):
 
         db_loader = DataLoader(db, batch_size=args.batchsz, shuffle=True, num_workers=4, pin_memory=True)
@@ -82,7 +83,7 @@ def main(args):
 
     # training.
     print('>>training Intro-VAE now...')
-    vae.set_alph_beta(args.alpha, args.beta)
+    vae.set_alph_beta_gamma(args.alpha, args.beta, args.gamma)
     for epoch in range(epoch_start, args.epoch):
 
         try:
@@ -132,8 +133,9 @@ if __name__ == '__main__':
     argparser.add_argument('--z_dim', type=int, default=256, help='hidden latent z dim')
     argparser.add_argument('--epoch', type=int, default=200000, help='epoches')
     argparser.add_argument('--margin', type=int, default=110, help='margin')
-    argparser.add_argument('--alpha', type=float, default=0.25, help='alpha')
-    argparser.add_argument('--beta', type=float, default=0.5, help='beta')
+    argparser.add_argument('--alpha', type=float, default=0.25, help='alpha * loss_adv')
+    argparser.add_argument('--beta', type=float, default=0.5, help='beta * ae_loss')
+    argparser.add_argument('--gamma', type=float, default=1., help='gamma * kl(q||p)_loss')
     argparser.add_argument('--lr', type=float, default=0.002, help='learning rate')
     argparser.add_argument('--root', type=str, default='/home/i/tmp/MAML-Pytorch/miniimagenet/', help='root/label/*.jpg')
 
