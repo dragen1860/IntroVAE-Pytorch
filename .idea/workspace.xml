@@ -2,6 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="77b2fcb6-3848-43ef-9190-367b35e3f01a" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/celeba.py" beforeDir="false" afterPath="$PROJECT_DIR$/celeba.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/model.py" beforeDir="false" afterPath="$PROJECT_DIR$/model.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -30,25 +32,28 @@
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="py" value="8059" />
+          <entry key="py" value="8709" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="Python" value="8059" />
+          <entry key="Python" value="8709" />
         </counts>
       </usages-collector>
     </session>
   </component>
   <component name="FileEditorManager">
     <leaf>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/celeba.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="264">
-              <caret line="12" column="6" lean-forward="true" selection-start-line="12" selection-start-column="6" selection-end-line="12" selection-end-column="6" />
+            <state relative-caret-position="354">
+              <caret line="30" column="37" selection-start-line="30" selection-start-column="37" selection-end-line="31" selection-end-column="37" />
               <folding>
-                <marker date="1544076414851" expanded="true" signature="399:405" ph="..." />
+                <element signature="e#0#13#0" expanded="true" />
+                <marker date="1544080039316" expanded="true" signature="953:959" ph="..." />
+                <marker date="1544080039316" expanded="true" signature="1148:1149" ph="..." />
+                <marker date="1544080039316" expanded="true" signature="1148:1259" ph="..." />
               </folding>
             </state>
           </provider>
@@ -63,16 +68,16 @@
           </provider>
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="792">
-              <caret line="297" column="70" selection-start-line="297" selection-start-column="70" selection-end-line="297" selection-end-column="70" />
+            <state relative-caret-position="726">
+              <caret line="297" column="58" lean-forward="true" selection-start-line="297" selection-start-column="15" selection-end-line="297" selection-end-column="58" />
               <folding>
                 <element signature="e#0#13#0" expanded="true" />
-                <marker date="1544078333782" expanded="true" signature="1640:8310" ph="..." />
-                <marker date="1544078333782" expanded="true" signature="5961:6350" ph="..." />
-                <marker date="1544078333782" expanded="true" signature="8321:8336" ph="..." />
+                <marker date="1544078625718" expanded="true" signature="1640:8297" ph="..." />
+                <marker date="1544078625718" expanded="true" signature="5961:6350" ph="..." />
+                <marker date="1544078625718" expanded="true" signature="8308:8323" ph="..." />
               </folding>
             </state>
           </provider>
@@ -81,7 +86,7 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/utils.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="156">
+            <state relative-caret-position="222">
               <caret line="42" column="8" selection-start-line="42" selection-start-column="8" selection-end-line="42" selection-end-column="8" />
               <folding>
                 <element signature="e#0#13#0" expanded="true" />
@@ -113,11 +118,11 @@
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/main.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="596">
-              <caret line="43" column="14" lean-forward="true" selection-start-line="43" selection-start-column="14" selection-end-line="43" selection-end-column="14" />
+            <state relative-caret-position="684">
+              <caret line="64" column="18" lean-forward="true" selection-start-line="64" selection-start-column="18" selection-end-line="64" selection-end-column="18" />
               <folding>
                 <element signature="e#0#13#0" expanded="true" />
-                <marker date="1544076920101" expanded="true" signature="189:855" ph="..." />
+                <marker date="1544079857986" expanded="true" signature="211:2062" ph="..." />
               </folding>
             </state>
           </provider>
@@ -148,9 +153,9 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/utils.py" />
-        <option value="$PROJECT_DIR$/celeba.py" />
-        <option value="$PROJECT_DIR$/main.py" />
         <option value="$PROJECT_DIR$/model.py" />
+        <option value="$PROJECT_DIR$/main.py" />
+        <option value="$PROJECT_DIR$/celeba.py" />
       </list>
     </option>
   </component>
@@ -282,19 +287,9 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/celeba.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="264">
-          <caret line="12" column="6" lean-forward="true" selection-start-line="12" selection-start-column="6" selection-end-line="12" selection-end-column="6" />
-          <folding>
-            <marker date="1544076414851" expanded="true" signature="399:405" ph="..." />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/utils.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="156">
+        <state relative-caret-position="222">
           <caret line="42" column="8" selection-start-line="42" selection-start-column="8" selection-end-line="42" selection-end-column="8" />
           <folding>
             <element signature="e#0#13#0" expanded="true" />
@@ -304,26 +299,39 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/main.py">
+    <entry file="file://$PROJECT_DIR$/model.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="596">
-          <caret line="43" column="14" lean-forward="true" selection-start-line="43" selection-start-column="14" selection-end-line="43" selection-end-column="14" />
+        <state relative-caret-position="726">
+          <caret line="297" column="58" lean-forward="true" selection-start-line="297" selection-start-column="15" selection-end-line="297" selection-end-column="58" />
           <folding>
             <element signature="e#0#13#0" expanded="true" />
-            <marker date="1544076920101" expanded="true" signature="189:855" ph="..." />
+            <marker date="1544078625718" expanded="true" signature="1640:8297" ph="..." />
+            <marker date="1544078625718" expanded="true" signature="5961:6350" ph="..." />
+            <marker date="1544078625718" expanded="true" signature="8308:8323" ph="..." />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/model.py">
+    <entry file="file://$PROJECT_DIR$/main.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="792">
-          <caret line="297" column="70" selection-start-line="297" selection-start-column="70" selection-end-line="297" selection-end-column="70" />
+        <state relative-caret-position="684">
+          <caret line="64" column="18" lean-forward="true" selection-start-line="64" selection-start-column="18" selection-end-line="64" selection-end-column="18" />
           <folding>
             <element signature="e#0#13#0" expanded="true" />
-            <marker date="1544078333782" expanded="true" signature="1640:8310" ph="..." />
-            <marker date="1544078333782" expanded="true" signature="5961:6350" ph="..." />
-            <marker date="1544078333782" expanded="true" signature="8321:8336" ph="..." />
+            <marker date="1544079857986" expanded="true" signature="211:2062" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/celeba.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="354">
+          <caret line="30" column="37" selection-start-line="30" selection-start-column="37" selection-end-line="31" selection-end-column="37" />
+          <folding>
+            <element signature="e#0#13#0" expanded="true" />
+            <marker date="1544080039316" expanded="true" signature="953:959" ph="..." />
+            <marker date="1544080039316" expanded="true" signature="1148:1149" ph="..." />
+            <marker date="1544080039316" expanded="true" signature="1148:1259" ph="..." />
           </folding>
         </state>
       </provider>

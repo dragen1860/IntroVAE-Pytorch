@@ -295,7 +295,7 @@ class IntroVAE(nn.Module):
 
 
 
-        print(encoder_loss.item(), decoder_loss.item(), loss_ae.item())
+        return encoder_loss, decoder_loss, loss_ae, xr, xp
 
 
 
