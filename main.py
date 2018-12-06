@@ -26,7 +26,7 @@ def main(args):
 
     viz = visdom.Visdom()
 
-    db = load_celeba('/home/i/tmp/MAML-Pytorch/miniimagenet/', args.imgsz)
+    db = load_celeba(args.root, args.imgsz)
     db_loader = DataLoader(db, batch_size=args.batchsz, shuffle=True, num_workers=4, pin_memory=True)
 
     device = torch.device('cuda')
@@ -134,7 +134,9 @@ if __name__ == '__main__':
     argparser.add_argument('--margin', type=int, default=110, help='margin')
     argparser.add_argument('--alpha', type=float, default=0.25, help='alpha')
     argparser.add_argument('--beta', type=float, default=0.5, help='beta')
-    argparser.add_argument('--lr', type=float, default=0.0002, help='learning rate')
+    argparser.add_argument('--lr', type=float, default=0.002, help='learning rate')
+    argparser.add_argument('--root', type=str, default='/home/i/tmp/MAML-Pytorch/miniimagenet/', help='root/label/*.jpg')
+
 
     args = argparser.parse_args()
 
