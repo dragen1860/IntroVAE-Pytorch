@@ -129,7 +129,7 @@ def main(args):
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--imgsz', type=int, default=128, help='imgsz')
-    argparser.add_argument('--batchsz', type=int, default=8, help='batch size')
+    argparser.add_argument('--batchsz', type=int, default=18, help='batch size')
     argparser.add_argument('--z_dim', type=int, default=256, help='hidden latent z dim')
     argparser.add_argument('--epoch', type=int, default=200000, help='epoches')
     argparser.add_argument('--margin', type=int, default=110, help='margin')

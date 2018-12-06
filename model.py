@@ -193,8 +193,9 @@ class IntroVAE(nn.Module):
         h_dim = z_.size(1)
 
         # create mu net and sigm net
-        self.mu_net = nn.Linear(h_dim, z_dim)
-        self.log_sigma2_net = nn.Linear(h_dim, z_dim)
+        # self.mu_net = nn.Linear(h_dim, z_dim)
+        # self.log_sigma2_net = nn.Linear(h_dim, z_dim)
+        self.z_net = nn.Linear(h_dim, 2 * z_dim)
 
         # sample
         z, mu, log_sigma = self.reparametrization(z_)
@@ -237,7 +238,9 @@ class IntroVAE(nn.Module):
         :param z_: [b, 2*z_dim]
         :return:
         """
-        mu, log_sigma2 = self.mu_net(z_), self.log_sigma2_net(z_)
+        # mu, log_sigma2 = self.mu_net(z_), self.log_sigma2_net(z_)
+        # [b, 1024] => [b, 512], [b, 512]
+        mu, log_sigma2 = self.z_net(z_).chunk(2, dim=1)
         eps = torch.randn_like(log_sigma2)
         # reparametrization trick
         # mean + sigma * eps
