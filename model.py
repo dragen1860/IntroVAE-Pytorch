@@ -16,36 +16,47 @@ class Encoder(nn.Module):
         """
         super(Encoder, self).__init__()
 
+        x = torch.randn(2, 3, imgsz, imgsz)
+        print('Encoder:', list(x.shape), end='=>')
 
         layers = [
-            nn.Conv2d(3, ch, kernel_size=5, stride=1, padding=0),
+            nn.Conv2d(3, ch, kernel_size=5, stride=1, padding=1),
             nn.ReLU(inplace=True),
             nn.AvgPool2d(2, stride=None, padding=0),
         ]
 
+        out = nn.Sequential(*layers)(x)
+        print(list(out.shape), end='=>')
+
         # 128 => 64
         mapsz = imgsz // 2
-        ch_next = ch * 2
-        block = 1
+        ch_cur = ch
+        ch_next = ch_cur * 2
 
         while mapsz > 4:
             # add resblk
             layers.extend([
-                ResBlk([3, 3], [ch, ch_next, ch_next]),
+                ResBlk([3, 3], [ch_cur, ch_next, ch_next]),
                 nn.AvgPool2d(kernel_size=2, stride=None)
             ])
-            block += 1
             mapsz = mapsz // 2
-            ch = ch_next
-            ch_next = ch_next * 2 if ch_next <= 256 else 512 # set max ch=512
+            ch_cur = ch_next
+            ch_next = ch_next * 2 if ch_next < 512 else 512 # set max ch=512
+
+            out = nn.Sequential(*layers)(x)
+            print(list(out.shape), end='=>')
 
         layers.extend([
-            ResBlk([3, 3], [ch_next, ch_next, ch_next]),
+            ResBlk([3, 3], [ch_cur, ch_next, ch_next]),
             nn.AvgPool2d(kernel_size=2, stride=None),
             Flatten()
         ])
 
         self.net = nn.Sequential(*layers)
+
+
+        out = nn.Sequential(*layers)(x)
+        print(list(out.shape))
 
 
     def forward(self, x):
@@ -62,57 +73,91 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
 
 
-    def __init__(self, imgsz, ch):
+    def __init__(self, imgsz, z_dim):
         """
 
-        :param imgsz:
-        :param ch:
+        :param imgsz: 1024
+        :param z_dim: 512
         """
         super(Decoder, self).__init__()
 
+        mapsz = 4
+        upsamples = int(math.log2(imgsz) - 2) # 8
+        ch_next = z_dim
+        # print('z:', [2, z_dim], 'upsamples:', upsamples, ', recon:', [2, 3, imgsz, imgsz])
+        print('Decoder:', [z_dim], '=>', [ch_next, mapsz, mapsz], end='=>')
+
+        # z: [b, z_dim] => [b, z_dim, 4, 4]
         layers = [
-            nn.Linear(512, 512 * 4 * 4),
+            # z_dim => z_dim * 4 * 4 => [z_dim, 4, 4] => [z_dim, 4, 4]
+            nn.Linear(z_dim, z_dim * mapsz * mapsz),
             nn.ReLU(inplace=True),
-            Reshape(512, 4, 4),
-            ResBlk([3, 3], [512, 512, 512])
+            Reshape(z_dim, mapsz, mapsz),
+            ResBlk([3, 3], [z_dim, z_dim, z_dim])
         ]
 
-        mapsz = 4
-        upsamples = int(math.log2(imgsz) - 2)
-        block = 2
-        ch_next = 512
 
-        for i in range(upsamples-6):
+        # scale imgsz up while keeping channel untouched
+        # [b, z_dim, 4, 4] => [b, z_dim, 8, 8] => [b, z_dim, 16, 16]
+        for i in range(upsamples-6): # if upsamples > 6
             layers.extend([
                 nn.Upsample(scale_factor=2),
                 ResBlk([3, 3], [ch_next, ch_next, ch_next])
             ])
-
             mapsz = mapsz * 2
 
+            tmp = torch.randn(2, z_dim)
+            net = nn.Sequential(*layers)
+            out = net(tmp)
+            print(list(out.shape), end='.=>')
+            del net
+
+        # scale imgsz up and scale imgc down
+        # mapsz: 4, ch_next: 512
+        # x: [b, ch_next, mapsz, mapsz]
+        # [b, z_dim, 16, 16] => [z_dim//2, 32, 32] => [z_dim//4, 64, 64] => [z_dim//8, 128, 128]
+        # => [z_dim//16, 256, 256] => [z_dim//32, 512, 512] => [z_dim//64, 1024, 1024]
+
         while mapsz < imgsz:
-            ch_next = ch_next // 2 if ch_next >=32 else 16 # set mininum ch=16
+            ch_cur = ch_next
+            ch_next = ch_next // 2 if ch_next >=32 else ch_next # set mininum ch=16
             layers.extend([
+                # [2, 32, 32, 32] => [2, 32, 64, 64]
                 nn.Upsample(scale_factor=2),
-                ResBlk([3, 3], [ch_next * 2, ch_next, ch_next])
+                # => [2, 16, 64, 64]
+                ResBlk([3, 3], [ch_cur, ch_next, ch_next])
             ])
             mapsz = mapsz * 2
 
+            tmp = torch.randn(2, z_dim)
+            net = nn.Sequential(*layers)
+            out = net(tmp)
+            print(list(out.shape), end='=>')
+            del net
+
+
+        # [b, ch_next, 1024, 1024] => [b, 3, 1024, 1024]
         layers.extend([
-            nn.Conv2d(ch_next, 3, kernel_size=5, stride=1, padding=0),
+            nn.Conv2d(ch_next, 3, kernel_size=5, stride=1, padding=2),
             nn.Sigmoid()
         ])
 
         self.net = nn.Sequential(*layers)
 
+        tmp = torch.randn(2, z_dim)
+        out = self.net(tmp)
+        print(list(out.shape))
 
     def forward(self, x):
         """
 
-        :param x:
+        :param x: [b, z_dim]
         :return:
         """
-        return self.net(x)
+        # print('before forward:', x.shape)
+        x =  self.net(x)
+        # print('after forward:', x.shape)
+        return x
 
 
 
@@ -121,27 +166,54 @@ class Decoder(nn.Module):
 class IntroVAE(nn.Module):
 
 
-    def __init__(self, z_dim):
+    def __init__(self, imgsz, z_dim):
+        """
+
+        :param imgsz:
+        :param z_dim: h_dim is the output dim of encoder, and we use mu_net/sigma net to convert it from
+        h_dim to z_dim
+        """
         super(IntroVAE, self).__init__()
 
 
-        self.encoder = Encoder(1024, 32)
-        self.decoder = Decoder(1024, 32)
+        self.encoder = Encoder(imgsz, 32)
 
-        self.mu_net = nn.Linear(2*z_dim, z_dim)
-        self.log_sigma2_net = nn.Linear(2 * z_dim, z_dim)
+        # get z_dim
+        x = torch.randn(2, 3, imgsz, imgsz)
+        z_ = self.encoder(x)
+        h_dim = z_.size(1)
+
+        # create mu net and sigm net
+        self.mu_net = nn.Linear(h_dim, z_dim)
+        self.log_sigma2_net = nn.Linear(h_dim, z_dim)
+
+        # sample
+        z, mu, log_sigma = self.reparametrization(z_)
+
+        # create decoder by z_dim
+        self.decoder = Decoder(imgsz, z_dim)
+        out = self.decoder(z)
+
+        # print
+        print('x:', list(x.shape), 'z_:', list(z_.shape), 'z:', list(z.shape), 'out:', list(out.shape))
+        print('z_dim:', z_dim)
+
 
         self.alpha = 1
         self.beta = 1
         self.margin = 125
+        self.z_dim = z_dim
+        self.h_dim = h_dim
 
         self.optim_encoder = optim.Adam(self.encoder.parameters(), lr=1e-3)
         self.optim_decoder = optim.Adam(self.decoder.parameters(), lr=1e-3)
 
+
+
     def reparametrization(self, z_):
         """
 
-        :param z_:
+        :param z_: [b, 2*z_dim]
         :return:
         """
         mu, log_sigma2 = self.mu_net(z_), self.log_sigma2_net(z_)
@@ -159,8 +231,9 @@ class IntroVAE(nn.Module):
         :param log_sigma2:
         :return:
         """
-        # TODO
-        kl = 0.5 * (1 + log_sigma2 - torch.power(mu, 2) - torch.exp(log_sigma2))
+        # https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
+        kl = - 0.5 * (1 + log_sigma2 - torch.pow(mu, 2) - torch.exp(log_sigma2))
+        kl = kl.sum()
 
         return kl
 
@@ -171,13 +244,11 @@ class IntroVAE(nn.Module):
         :param x: [b, 3, 1024, 1024]
         :return:
         """
-        # x => z_ae => z_ae, mu_ae, log_sigma^2_ae => x_r_ae
+        # x => z_ae_ => z_ae, mu_ae, log_sigma^2_ae => x_ae
         # get reconstructed z
         z_ae_ = self.encoder(x)
         # sample from z_r_
         z_ae, mu_ae, log_sigma2_ae = self.reparametrization(z_ae_)
-        # sample from normal dist by shape of z_r
-        z_p = torch.randn_like(z_ae)
         # get reconstructed x
         x_ae = self.decoder(z_ae)
 
@@ -193,6 +264,8 @@ class IntroVAE(nn.Module):
         z_r_ng, mu_r_ng, log_sigma2_r_ng = self.reparametrization(z_r_ng_)
 
         # z_p => x_p => z_p_ => z_p_hat, mu_p_hat, log_sigma^2_p_hat
+        # sample from normal dist by shape of z_r
+        z_p = torch.randn_like(z_ae)
         x_p = self.decoder(z_p)
         z_p_ = self.encoder(x_p)
         z_p_hat, mu_p_hat, log_sigma2_p_hat = self.reparametrization(z_p_)

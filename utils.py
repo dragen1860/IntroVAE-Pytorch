@@ -58,11 +58,18 @@ class ResBlk(nn.Module):
 
         for idx in range(len(chs)-1):
             layers.extend([
-                nn.Conv2d(chs[idx], chs[idx+1], kernel_size=kernels[idx], stride=1, padding=0),
+                nn.Conv2d(chs[idx], chs[idx+1], kernel_size=kernels[idx], stride=1, padding=1),
                 nn.ReLU(inplace=True)
             ])
 
         self.net = nn.Sequential(*layers)
+
+        self.shortcut = nn.Sequential()
+        if chs[0] != chs[-1]:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(chs[0], chs[-1], kernel_size=1),
+                nn.ReLU(inplace=True)
+            )
 
     def forward(self, x):
         """
@@ -70,4 +77,7 @@ class ResBlk(nn.Module):
         :param x:
         :return:
         """
-        return x + self.net(x)
+        res = self.net(x)
+        x_ = self.shortcut(x)
+        # print(x.shape, x_.shape, res.shape)
+        return x_ + res
