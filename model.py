@@ -20,7 +20,7 @@ class Encoder(nn.Module):
         print('Encoder:', list(x.shape), end='=>')
 
         layers = [
-            nn.Conv2d(3, ch, kernel_size=5, stride=1, padding=1),
+            nn.Conv2d(3, ch, kernel_size=5, stride=1, padding=2),
             nn.ReLU(inplace=True),
             nn.AvgPool2d(2, stride=None, padding=0),
         ]
@@ -36,7 +36,7 @@ class Encoder(nn.Module):
         while mapsz > 4:
             # add resblk
             layers.extend([
-                ResBlk([3, 3], [ch_cur, ch_next, ch_next]),
+                ResBlk([1, 3, 3], [ch_cur, ch_next, ch_next, ch_next]),
                 nn.AvgPool2d(kernel_size=2, stride=None)
             ])
             mapsz = mapsz // 2
@@ -48,6 +48,8 @@ class Encoder(nn.Module):
 
         layers.extend([
             ResBlk([3, 3], [ch_cur, ch_next, ch_next]),
+            nn.AvgPool2d(kernel_size=2, stride=None),
+            ResBlk([3, 3], [ch_next, ch_next, ch_next]),
             nn.AvgPool2d(kernel_size=2, stride=None),
             Flatten()
         ])
@@ -99,7 +101,7 @@ class Decoder(nn.Module):
 
         # scale imgsz up while keeping channel untouched
         # [b, z_dim, 4, 4] => [b, z_dim, 8, 8] => [b, z_dim, 16, 16]
-        for i in range(upsamples-6): # if upsamples > 6
+        for i in range(2): # if upsamples > 6
             layers.extend([
                 nn.Upsample(scale_factor=2),
                 ResBlk([3, 3], [ch_next, ch_next, ch_next])
@@ -118,14 +120,14 @@ class Decoder(nn.Module):
         # [b, z_dim, 16, 16] => [z_dim//2, 32, 32] => [z_dim//4, 64, 64] => [z_dim//8, 128, 128]
         # => [z_dim//16, 256, 256] => [z_dim//32, 512, 512] => [z_dim//64, 1024, 1024]
 
-        while mapsz < imgsz:
+        while mapsz < imgsz//2:
             ch_cur = ch_next
             ch_next = ch_next // 2 if ch_next >=32 else ch_next # set mininum ch=16
             layers.extend([
                 # [2, 32, 32, 32] => [2, 32, 64, 64]
                 nn.Upsample(scale_factor=2),
                 # => [2, 16, 64, 64]
-                ResBlk([3, 3], [ch_cur, ch_next, ch_next])
+                ResBlk([1, 3, 3], [ch_cur, ch_next, ch_next, ch_next])
             ])
             mapsz = mapsz * 2
 
@@ -138,8 +140,10 @@ class Decoder(nn.Module):
 
         # [b, ch_next, 1024, 1024] => [b, 3, 1024, 1024]
         layers.extend([
+            nn.Upsample(scale_factor=2),
+            ResBlk([3, 3], [ch_next, ch_next, ch_next]),
             nn.Conv2d(ch_next, 3, kernel_size=5, stride=1, padding=2),
-            nn.Sigmoid()
+            # sigmoid / tanh
         ])
 
         self.net = nn.Sequential(*layers)
@@ -179,7 +183,7 @@ class IntroVAE(nn.Module):
         z_dim = args.z_dim
 
 
-        self.encoder = Encoder(imgsz, 32)
+        self.encoder = Encoder(imgsz, 16)
 
         # get z_dim
         x = torch.randn(2, 3, imgsz, imgsz)
@@ -249,10 +253,18 @@ class IntroVAE(nn.Module):
 
         return kl
 
+    def output_activation(self, x):
+        """
+
+        :param x:
+        :return:
+        """
+        return torch.tanh(x)
 
     def forward(self, x):
         """
         The notation used here all come from Algorithm 1, page 6 of official paper.
+        can refer to Figure7 in page 15 as well.
         :param x: [b, 3, 1024, 1024]
         :return:
         """
@@ -260,9 +272,9 @@ class IntroVAE(nn.Module):
         # 1. update encoder
         z_ = self.encoder(x)
         z, mu, log_sigma2 = self.reparametrization(z_)
-        xr = self.decoder(z)
+        xr = self.output_activation(self.decoder(z))
         zp = torch.randn_like(z)
-        xp = self.decoder(zp)
+        xp = self.output_activation(self.decoder(zp))
 
         loss_ae = F.mse_loss(xr, x)
         reg_ae = self.kld(mu, log_sigma2)
@@ -289,9 +301,9 @@ class IntroVAE(nn.Module):
         # 2. update decoder
         z_ = self.encoder(x)
         z, mu, log_sigma2 = self.reparametrization(z_)
-        xr = self.decoder(z)
+        xr = self.output_activation(self.decoder(z))
         zp = torch.randn_like(z)
-        xp = self.decoder(zp)
+        xp = self.output_activation(self.decoder(zp))
 
         loss_ae = F.mse_loss(xr, x)
 

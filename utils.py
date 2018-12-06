@@ -58,7 +58,8 @@ class ResBlk(nn.Module):
 
         for idx in range(len(chs)-1):
             layers.extend([
-                nn.Conv2d(chs[idx], chs[idx+1], kernel_size=kernels[idx], stride=1, padding=1),
+                nn.Conv2d(chs[idx], chs[idx+1], kernel_size=kernels[idx], stride=1,
+                          padding=1 if kernels[idx]!=1 else 0),
                 nn.ReLU(inplace=True)
             ])
 

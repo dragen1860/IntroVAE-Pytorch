@@ -34,7 +34,7 @@ def main(args):
     params = filter(lambda x: x.requires_grad, vae.parameters())
     num = sum(map(lambda x: np.prod(x.shape), params))
     print('Total trainable tensors:', num)
-    # print(vae)
+    print(vae)
 
     viz.line([0], [0], win='encoder_loss', opts=dict(title='encoder_loss'))
     viz.line([0], [0], win='decoder_loss', opts=dict(title='decoder_loss'))
