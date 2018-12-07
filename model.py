@@ -12,7 +12,7 @@ class Encoder(nn.Module):
         """
 
         :param imgsz:
-        :param ch:
+        :param ch: base channels
         """
         super(Encoder, self).__init__()
 
@@ -25,16 +25,16 @@ class Encoder(nn.Module):
             nn.ReLU(inplace=True),
             nn.AvgPool2d(2, stride=None, padding=0),
         ]
-
+        # just for print
         out = nn.Sequential(*layers)(x)
         print(list(out.shape), end='=>')
 
-        # 128 => 64
+        # [b, ch_cur, imgsz, imgsz] => [b, ch_next, mapsz, mapsz]
         mapsz = imgsz // 2
         ch_cur = ch
         ch_next = ch_cur * 2
 
-        while mapsz > 4:
+        while mapsz > 4: # util [b, ch_, 4, 4]
             # add resblk
             layers.extend([
                 ResBlk([1, 3, 3], [ch_cur, ch_next, ch_next, ch_next]),
@@ -44,6 +44,7 @@ class Encoder(nn.Module):
             ch_cur = ch_next
             ch_next = ch_next * 2 if ch_next < 512 else 512 # set max ch=512
 
+            # for print
             out = nn.Sequential(*layers)(x)
             print(list(out.shape), end='=>')
 
@@ -57,7 +58,7 @@ class Encoder(nn.Module):
 
         self.net = nn.Sequential(*layers)
 
-
+        # for printing
         out = nn.Sequential(*layers)(x)
         print(list(out.shape))
 
@@ -79,16 +80,14 @@ class Decoder(nn.Module):
     def __init__(self, imgsz, z_dim):
         """
 
-        :param imgsz: 1024
-        :param z_dim: 512
+        :param imgsz:
+        :param z_dim:
         """
         super(Decoder, self).__init__()
 
         mapsz = 4
-        upsamples = int(math.log2(imgsz) - 2) # 8
         ch_next = z_dim
-        # print('z:', [2, z_dim], 'upsamples:', upsamples, ', recon:', [2, 3, imgsz, imgsz])
-        print('Decoder:', [z_dim], '=>', [ch_next, mapsz, mapsz], end='=>')
+        print('Decoder:', [z_dim], '=>', [2, ch_next, mapsz, mapsz], end='=>')
 
         # z: [b, z_dim] => [b, z_dim, 4, 4]
         layers = [
@@ -103,25 +102,23 @@ class Decoder(nn.Module):
 
         # scale imgsz up while keeping channel untouched
         # [b, z_dim, 4, 4] => [b, z_dim, 8, 8] => [b, z_dim, 16, 16]
-        for i in range(2): # if upsamples > 6
+        for i in range(2):
             layers.extend([
                 nn.Upsample(scale_factor=2),
                 ResBlk([3, 3], [ch_next, ch_next, ch_next])
             ])
             mapsz = mapsz * 2
 
+            # for print
             tmp = torch.randn(2, z_dim)
             net = nn.Sequential(*layers)
             out = net(tmp)
-            print(list(out.shape), end='.=>')
+            print(list(out.shape), end='=>')
             del net
 
         # scale imgsz up and scale imgc down
-        # mapsz: 4, ch_next: 512
-        # x: [b, ch_next, mapsz, mapsz]
         # [b, z_dim, 16, 16] => [z_dim//2, 32, 32] => [z_dim//4, 64, 64] => [z_dim//8, 128, 128]
-        # => [z_dim//16, 256, 256] => [z_dim//32, 512, 512] => [z_dim//64, 1024, 1024]
-
+        # => [z_dim//16, 256, 256] => [z_dim//32, 512, 512]
         while mapsz < imgsz//2:
             ch_cur = ch_next
             ch_next = ch_next // 2 if ch_next >=32 else ch_next # set mininum ch=16
@@ -133,6 +130,7 @@ class Decoder(nn.Module):
             ])
             mapsz = mapsz * 2
 
+            # for print
             tmp = torch.randn(2, z_dim)
             net = nn.Sequential(*layers)
             out = net(tmp)
@@ -140,7 +138,7 @@ class Decoder(nn.Module):
             del net
 
 
-        # [b, ch_next, 1024, 1024] => [b, 3, 1024, 1024]
+        # [b, ch_next, 512, 512] => [b, 3, 1024, 1024]
         layers.extend([
             nn.Upsample(scale_factor=2),
             ResBlk([3, 3], [ch_next, ch_next, ch_next]),
@@ -150,6 +148,7 @@ class Decoder(nn.Module):
 
         self.net = nn.Sequential(*layers)
 
+        # for print
         tmp = torch.randn(2, z_dim)
         out = self.net(tmp)
         print(list(out.shape))
@@ -176,8 +175,8 @@ class IntroVAE(nn.Module):
         """
 
         :param imgsz:
-        :param z_dim: h_dim is the output dim of encoder, and we use mu_net/sigma net to convert it from
-        h_dim to z_dim
+        :param z_dim: h_dim is the output dim of encoder, and we use z_net net to convert it from
+        h_dim to 2*z_dim and then splitting.
         """
         super(IntroVAE, self).__init__()
 
@@ -185,35 +184,33 @@ class IntroVAE(nn.Module):
         z_dim = args.z_dim
 
 
+        # set first conv channel as 16
         self.encoder = Encoder(imgsz, 16)
 
-        # get z_dim
+        # get h_dim of encoder output
         x = torch.randn(2, 3, imgsz, imgsz)
         z_ = self.encoder(x)
         h_dim = z_.size(1)
 
-        # create mu net and sigm net
-        # self.mu_net = nn.Linear(h_dim, z_dim)
-        # self.log_sigma2_net = nn.Linear(h_dim, z_dim)
+        # convert h_dim to 2*z_dim
         self.z_net = nn.Linear(h_dim, 2 * z_dim)
 
         # sample
-        z, mu, log_sigma = self.reparametrization(z_)
+        z, mu, log_sigma2 = self.reparametrization(z_)
 
         # create decoder by z_dim
         self.decoder = Decoder(imgsz, z_dim)
         out = self.decoder(z)
 
         # print
-        print('x:', list(x.shape), 'z_:', list(z_.shape), 'z:', list(z.shape), 'out:', list(out.shape))
-        print('z_dim:', z_dim)
+        print('IntroVAE x:', list(x.shape), 'z_:', list(z_.shape), 'z:', list(z.shape), 'out:', list(out.shape))
 
 
-        self.alpha = args.alpha
-        self.beta = args.beta
-        self.gamma = args.gamma
-        self.margin = args.margin
-        self.z_dim = z_dim
+        self.alpha = args.alpha # for adversarial loss
+        self.beta = args.beta # for reconstruction loss
+        self.gamma = args.gamma # for variational loss
+        self.margin = args.margin # margin in eq. 11
+        self.z_dim = z_dim # z is the hidden vector while h is the output of encoder
         self.h_dim = h_dim
 
         self.optim_encoder = optim.Adam(self.encoder.parameters(), lr=args.lr)
@@ -238,9 +235,9 @@ class IntroVAE(nn.Module):
         :param z_: [b, 2*z_dim]
         :return:
         """
-        # mu, log_sigma2 = self.mu_net(z_), self.log_sigma2_net(z_)
-        # [b, 1024] => [b, 512], [b, 512]
+        # [b, 2*z_dim] => [b, z_dim], [b, z_dim]
         mu, log_sigma2 = self.z_net(z_).chunk(2, dim=1)
+        # sample from normal dist
         eps = torch.randn_like(log_sigma2)
         # reparametrization trick
         # mean + sigma * eps
@@ -251,13 +248,14 @@ class IntroVAE(nn.Module):
     def kld(self, mu, log_sigma2):
         """
         compute the kl divergence between N(mu, sigma^2) and N(0, 1)
-        :param mu:
-        :param log_sigma2:
+        :param mu: [b, z_dim]
+        :param log_sigma2: [b, z_dim]
         :return:
         """
+        batchsz = mu.size(0)
         # https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
         kl = - 0.5 * (1 + log_sigma2 - torch.pow(mu, 2) - torch.exp(log_sigma2))
-        kl = kl.sum()
+        kl = kl.sum() / (batchsz * self.z_dim)
 
         return kl
 

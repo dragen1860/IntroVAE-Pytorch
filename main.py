@@ -1,3 +1,4 @@
+import  os, glob
 import  torch
 import  numpy as np
 from    torch.utils.data import DataLoader
@@ -35,7 +36,7 @@ def main(args):
     params = filter(lambda x: x.requires_grad, vae.parameters())
     num = sum(map(lambda x: np.prod(x.shape), params))
     print('Total trainable tensors:', num)
-    print(vae)
+    # print(vae)
 
     viz.line([0], [0], win='encoder_loss', opts=dict(title='encoder_loss'))
     viz.line([0], [0], win='decoder_loss', opts=dict(title='decoder_loss'))
@@ -45,23 +46,49 @@ def main(args):
     viz.line([0], [0], win='decoder_adv', opts=dict(title='decoder_adv'))
 
 
-    # pre-training
-    print('>>pre-training...')
+
     epoch_start = 0
-    vae.set_alph_beta_gamma(0, args.beta, 0)
-    for _ in range(2):
+    if args.resume is not None and args.resume != 'None':
+        if args.resume is '': # load latest
+            ckpts = glob.glob('ckpt/*_*.mdl')
+            if not ckpts:
+                print('no avaliable ckpt found.')
+                raise FileNotFoundError
+            ckpts = sorted(ckpts, key=os.path.getmtime)
+            print(ckpts)
+            ckpt = ckpts[-1]
+            epoch_start = int(ckpt.split('.')[-2].split('_')[-1])
+            vae.load_state_dict(torch.load(ckpt))
+            print('load latest ckpt from:', ckpt, epoch_start)
+        else: # load specific ckpt
+            if os.path.isfile(args.resume):
+                vae.load_state_dict(torch.load(args.resume))
+                print('load ckpt from:', args.resume, epoch_start)
+            else:
+                raise FileNotFoundError
+    else:
+        print('pre-training and training from scratch...')
+
+
+    # pre-training
+    if 50000 - epoch_start > 0:
+        print('>>pre-training...')
+        vae.set_alph_beta_gamma(0, args.beta, args.gamma)
+    for _ in range(50000 - epoch_start):
 
         db_loader = DataLoader(db, batch_size=args.batchsz, shuffle=True, num_workers=4, pin_memory=True)
-
+        print('epoch\tvae\tenc-adv\t\tdec-adv\t\tae\t\tenc\t\tdec')
         for _, (x, label) in enumerate(db_loader):
             x = x.to(device)
-            epoch_start += 1
 
             encoder_loss, decoder_loss, reg_ae, encoder_adv, decoder_adv, loss_ae, xr, xp = vae(x)
 
             if epoch_start % 15 == 0:
 
-                print(epoch_start, encoder_loss.item(), decoder_loss.item(), loss_ae.item())
+                print(epoch_start, '\t%0.4f\t%0.3f\t\t%0.3f\t\t%0.4f\t\t%0.4f\t\t%0.4f'%(
+                    reg_ae.item(), encoder_adv.item(), decoder_adv.item(), loss_ae.item(), encoder_loss.item(),
+                    decoder_loss.item()
+                ))
 
                 viz.line([encoder_loss.item()], [epoch_start], win='encoder_loss', update='append')
                 viz.line([decoder_loss.item()], [epoch_start], win='decoder_loss', update='append')
@@ -79,6 +106,15 @@ def main(args):
                 viz.images(xp, nrow=4, win='xp', opts=dict(title='xp'))
 
 
+            if epoch_start % 1000 == 0:
+                torch.save(vae.state_dict(), 'ckpt/introvae_%d.mdl'%epoch_start)
+                print('saved ckpt:', 'ckpt/introvae_%d.mdl'%epoch_start)
+
+
+
+            epoch_start += 1
+
+
 
 
     # training.
@@ -91,7 +127,7 @@ def main(args):
         except StopIteration as err:
             db_loader = DataLoader(db, batch_size=args.batchsz, shuffle=True, num_workers=4, pin_memory=True)
             x, label = iter(db_loader).next()
-            print('>>>iter over once.')
+            print('epoch\tvae\tenc-adv\t\tdec-adv\t\tae\t\tenc\t\tdec')
 
         x = x.to(device)
 
@@ -99,7 +135,10 @@ def main(args):
 
         if epoch % 10 == 0:
 
-            print(epoch, encoder_loss.item(), decoder_loss.item(), loss_ae.item())
+            print(epoch_start, '\t%0.4f\t%0.3f\t\t%0.3f\t\t%0.4f\t\t%0.4f\t\t%0.4f' % (
+                reg_ae.item(), encoder_adv.item(), decoder_adv.item(), loss_ae.item(), encoder_loss.item(),
+                decoder_loss.item()
+            ))
 
             viz.line([encoder_loss.item()], [epoch], win='encoder_loss', update='append')
             viz.line([decoder_loss.item()], [epoch], win='decoder_loss', update='append')
@@ -116,6 +155,9 @@ def main(args):
             viz.images(xr, nrow=4, win='xr', opts=dict(title='xr'))
             viz.images(xp, nrow=4, win='xp', opts=dict(title='xp'))
 
+        if epoch % 1000 == 0:
+            torch.save(vae.state_dict(), 'ckpt/introvae_%d.mdl'%epoch)
+            print('saved ckpt:', 'ckpt/introvae_%d.mdl'%epoch)
 
 
 
@@ -137,7 +179,10 @@ if __name__ == '__main__':
     argparser.add_argument('--beta', type=float, default=0.5, help='beta * ae_loss')
     argparser.add_argument('--gamma', type=float, default=1., help='gamma * kl(q||p)_loss')
     argparser.add_argument('--lr', type=float, default=0.002, help='learning rate')
-    argparser.add_argument('--root', type=str, default='/home/i/tmp/MAML-Pytorch/miniimagenet/', help='root/label/*.jpg')
+    argparser.add_argument('--root', type=str, default='/home/i/tmp/MAML-Pytorch/miniimagenet/',
+                           help='root/label/*.jpg')
+    argparser.add_argument('--resume', type=str, default='',
+                           help='with ckpt path, set None to train from scratch, set empty str to load latest ckpt')
 
 
     args = argparser.parse_args()

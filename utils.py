@@ -43,8 +43,8 @@ class ResBlk(nn.Module):
     def __init__(self, kernels, chs):
         """
 
-        :param kernels: [1, 3, 3]
-        :param chs: [ch_in, 64, 64, 64]
+        :param kernels: [1, 3, 3], as [kernel_1, kernel_2, kernel_3]
+        :param chs: [ch_in, 64, 64, 64], as [ch_in, ch_out1, ch_out2, ch_out3]
         :return:
         """
         super(ResBlk, self).__init__()
@@ -53,10 +53,10 @@ class ResBlk(nn.Module):
 
         assert len(chs)-1 == len(kernels), "mismatching between chs and kernels"
 
-        for idx in range(len(chs)-1):
+        for idx in range(len(kernels)):
             layers.extend([
                 nn.Conv2d(chs[idx], chs[idx+1], kernel_size=kernels[idx], stride=1,
-                          padding=1 if kernels[idx]!=1 else 0),
+                          padding=1 if kernels[idx]!=1 else 0), # no padding for kernel=1
                 nn.BatchNorm2d(chs[idx+1]),
                 nn.ReLU(inplace=True)
             ])
@@ -64,7 +64,7 @@ class ResBlk(nn.Module):
         self.net = nn.Sequential(*layers)
 
         self.shortcut = nn.Sequential()
-        if chs[0] != chs[-1]:
+        if chs[0] != chs[-1]: # convert from ch_int to ch_out3
             self.shortcut = nn.Sequential(
                 nn.Conv2d(chs[0], chs[-1], kernel_size=1),
                 nn.BatchNorm2d(chs[-1]),
