@@ -3,10 +3,12 @@ import  torch
 import  numpy as np
 from    torch.utils.data import DataLoader
 import  argparse
+from    torchvision.utils import save_image
 
 from    celeba import load_celeba, unnorm_
 from    model import IntroVAE
 import  visdom
+
 
 
 
@@ -37,6 +39,11 @@ def main(args):
     num = sum(map(lambda x: np.prod(x.shape), params))
     print('Total trainable tensors:', num)
     # print(vae)
+
+    for path in ['res', 'ckpt']:
+        if not os.path.exists(path):
+            os.mkdir(path)
+            print('mkdir:', path)
 
 
     epoch_start = 0
@@ -71,11 +78,13 @@ def main(args):
     viz.line([0], [epoch_start], win='decoder_adv', opts=dict(title='decoder_adv'))
 
 
-    # pre-training
-    if 50000 - epoch_start > 0:
-        print('>>pre-training...')
+    # pre-training for 1.5 epoch
+    # pretraining_epoch = 1.5 * training_splitting_size // batchsz
+    pretraining_epoch = int(1.5 * (0.9*len(db)) ) // args.batchsz
+    if pretraining_epoch - epoch_start > 0:
+        print('>>pre-training for %d epoches,'%pretraining_epoch, 'already completed:', epoch_start)
         vae.set_alph_beta_gamma(0, args.beta, args.gamma)
-    for _ in range(50000 - epoch_start):
+    for _ in range(pretraining_epoch - epoch_start):
 
         db_loader = DataLoader(db, batch_size=args.batchsz, shuffle=True, num_workers=4, pin_memory=True)
         print('epoch\tvae\tenc-adv\t\tdec-adv\t\tae\t\tenc\t\tdec')
@@ -110,12 +119,14 @@ def main(args):
                 viz.images(xr, nrow=4, win='xr', opts=dict(title='xr'))
                 viz.images(xp, nrow=4, win='xp', opts=dict(title='xp'))
 
+                if epoch_start % 10000 == 0:
+                    save_image(xr, 'res/xr_%d.jpg'%epoch_start, nrow=4)
+                    save_image(xp, 'res/xp_%d.jpg'%epoch_start, nrow=4)
+                    print('save xr xp to res directory.')
 
-            if epoch_start % 1000 == 0:
+            if epoch_start % 10000 == 0:
                 torch.save(vae.state_dict(), 'ckpt/introvae_%d.mdl'%epoch_start)
                 print('saved ckpt:', 'ckpt/introvae_%d.mdl'%epoch_start)
-
-
 
             epoch_start += 1
 
@@ -164,13 +175,20 @@ def main(args):
             viz.images(xr, nrow=4, win='xr', opts=dict(title='xr'))
             viz.images(xp, nrow=4, win='xp', opts=dict(title='xp'))
 
-        if epoch % 1000 == 0:
+            if epoch % 10000 == 0:
+                save_image(xr, 'res/xr_%d.jpg' % epoch, nrow=4)
+                save_image(xp, 'res/xp_%d.jpg' % epoch, nrow=4)
+                print('save xr xp to res directory.')
+
+        if epoch % 10000 == 0:
             torch.save(vae.state_dict(), 'ckpt/introvae_%d.mdl'%epoch)
             print('saved ckpt:', 'ckpt/introvae_%d.mdl'%epoch)
 
 
 
 
+    torch.save(vae.state_dict(), 'ckpt/introvae_%d.mdl'%args.epoch)
+    print('saved final ckpt:', 'ckpt/introvae_%d.mdl'%args.epoch)
 
 
 

@@ -283,7 +283,7 @@ class IntroVAE(nn.Module):
         zp = torch.randn_like(z)
         xp = self.output_activation(self.decoder(zp))
 
-        loss_ae = F.mse_loss(xr, x, reduction='elementwise_mean')
+        loss_ae = F.mse_loss(xr, x, reduction='sum').sqrt()
         reg_ae = self.kld(mu, log_sigma2)
 
         zr_ng_ = self.encoder(xr.detach())
@@ -312,7 +312,7 @@ class IntroVAE(nn.Module):
         zp = torch.randn_like(z)
         xp = self.output_activation(self.decoder(zp))
 
-        loss_ae = F.mse_loss(xr, x, reduction='elementwise_mean')
+        loss_ae = F.mse_loss(xr, x, reduction='sum').sqrt()
 
         zr_ = self.encoder(xr)
         zr, mur, log_sigma2r = self.reparametrization(zr_)
