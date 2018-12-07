@@ -47,7 +47,7 @@ def main(args):
                 print('no avaliable ckpt found.')
                 raise FileNotFoundError
             ckpts = sorted(ckpts, key=os.path.getmtime)
-            print(ckpts)
+            # print(ckpts)
             ckpt = ckpts[-1]
             epoch_start = int(ckpt.split('.')[-2].split('_')[-1])
             vae.load_state_dict(torch.load(ckpt))
@@ -61,6 +61,8 @@ def main(args):
     else:
         print('pre-training and training from scratch...')
 
+    viz.line([[0 for _ in range(6)]], [epoch_start], win='train', opts=dict(title='training',
+                    legend=['b*ae', 'a*inf(x)', 'a*inf(xr)', 'a*inf(xp)', 'a*gen(xr)', 'a*gen(xp)']))
     viz.line([0], [epoch_start], win='encoder_loss', opts=dict(title='encoder_loss'))
     viz.line([0], [epoch_start], win='decoder_loss', opts=dict(title='decoder_loss'))
     viz.line([0], [epoch_start], win='ae_loss', opts=dict(title='ae_loss'))
@@ -80,15 +82,19 @@ def main(args):
         for _, (x, label) in enumerate(db_loader):
             x = x.to(device)
 
-            encoder_loss, decoder_loss, reg_ae, encoder_adv, decoder_adv, loss_ae, xr, xp = vae(x)
+            encoder_loss, decoder_loss, reg_ae, encoder_adv, decoder_adv, loss_ae, xr, xp, \
+                regr, regr_ng, regpp, regpp_ng = vae(x)
 
             if epoch_start % 50 == 0:
 
-                print(epoch_start, '\t%0.4f\t%0.3f\t\t%0.3f\t\t%0.4f\t\t%0.4f\t\t%0.4f'%(
+                print(epoch_start, '\t%0.3f\t%0.3f\t\t%0.3f\t\t%0.3f\t\t%0.3f\t\t%0.3f'%(
                     reg_ae.item(), encoder_adv.item(), decoder_adv.item(), loss_ae.item(), encoder_loss.item(),
                     decoder_loss.item()
                 ))
 
+                viz.line([[args.beta*loss_ae.item(), args.gamma*reg_ae.item(), args.alpha*regr_ng.item(),
+                          args.alpha * regpp_ng.item(), args.alpha*regr.item(), args.alpha*regpp.item()]],
+                         [epoch_start], win='train', update='append')
                 viz.line([encoder_loss.item()], [epoch_start], win='encoder_loss', update='append')
                 viz.line([decoder_loss.item()], [epoch_start], win='decoder_loss', update='append')
                 viz.line([loss_ae.item()], [epoch_start], win='ae_loss', update='append')
@@ -130,15 +136,19 @@ def main(args):
 
         x = x.to(device)
 
-        encoder_loss, decoder_loss, reg_ae, encoder_adv, decoder_adv, loss_ae, xr, xp = vae(x)
+        encoder_loss, decoder_loss, reg_ae, encoder_adv, decoder_adv, loss_ae, xr, xp, \
+                regr, regr_ng, regpp, regpp_ng = vae(x)
 
         if epoch % 50 == 0:
 
-            print(epoch_start, '\t%0.4f\t%0.3f\t\t%0.3f\t\t%0.4f\t\t%0.4f\t\t%0.4f' % (
+            print(epoch_start, '\t%0.3f\t%0.3f\t\t%0.3f\t\t%0.3f\t\t%0.3f\t\t%0.3f' % (
                 reg_ae.item(), encoder_adv.item(), decoder_adv.item(), loss_ae.item(), encoder_loss.item(),
                 decoder_loss.item()
             ))
 
+            viz.line([args.beta * loss_ae.item(), args.gamma * reg_ae.item(), args.alpha * regr_ng.item(),
+                      args.alpha * regpp_ng.item(), args.alpha * regr.item(), args.alpha * regpp.item()],
+                     [epoch], win='train', update='append')
             viz.line([encoder_loss.item()], [epoch], win='encoder_loss', update='append')
             viz.line([decoder_loss.item()], [epoch], win='decoder_loss', update='append')
             viz.line([loss_ae.item()], [epoch], win='ae_loss', update='append')
@@ -171,15 +181,15 @@ if __name__ == '__main__':
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--imgsz', type=int, default=128, help='imgsz')
-    argparser.add_argument('--batchsz', type=int, default=18, help='batch size')
+    argparser.add_argument('--batchsz', type=int, default=8, help='batch size')
     argparser.add_argument('--z_dim', type=int, default=256, help='hidden latent z dim')
-    argparser.add_argument('--epoch', type=int, default=200000, help='epoches')
-    argparser.add_argument('--margin', type=int, default=1, help='margin')
+    argparser.add_argument('--epoch', type=int, default=750000, help='epoches')
+    argparser.add_argument('--margin', type=int, default=110, help='margin')
     argparser.add_argument('--alpha', type=float, default=0.25, help='alpha * loss_adv')
     argparser.add_argument('--beta', type=float, default=0.5, help='beta * ae_loss')
     argparser.add_argument('--gamma', type=float, default=1., help='gamma * kl(q||p)_loss')
-    argparser.add_argument('--lr', type=float, default=0.002, help='learning rate')
-    argparser.add_argument('--root', type=str, default='/home/i/tmp/MAML-Pytorch/miniimagenet/',
+    argparser.add_argument('--lr', type=float, default=0.0002, help='learning rate')
+    argparser.add_argument('--root', type=str, default='/home/i/dbs/',
                            help='root/label/*.jpg')
     argparser.add_argument('--resume', type=str, default='',
                            help='with ckpt path, set None to train from scratch, set empty str to load latest ckpt')

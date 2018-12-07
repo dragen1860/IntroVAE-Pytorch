@@ -255,7 +255,7 @@ class IntroVAE(nn.Module):
         batchsz = mu.size(0)
         # https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians
         kl = - 0.5 * (1 + log_sigma2 - torch.pow(mu, 2) - torch.exp(log_sigma2))
-        kl = kl.sum() / (batchsz * self.z_dim)
+        kl = kl.sum() #(batchsz * self.z_dim)
 
         return kl
 
@@ -274,6 +274,7 @@ class IntroVAE(nn.Module):
         :param x: [b, 3, 1024, 1024]
         :return:
         """
+        batchsz = x.size(0)
 
         # 1. update encoder
         z_ = self.encoder(x)
@@ -282,7 +283,7 @@ class IntroVAE(nn.Module):
         zp = torch.randn_like(z)
         xp = self.output_activation(self.decoder(zp))
 
-        loss_ae = F.mse_loss(xr, x)
+        loss_ae = F.mse_loss(xr, x, reduction='elementwise_mean')
         reg_ae = self.kld(mu, log_sigma2)
 
         zr_ng_ = self.encoder(xr.detach())
@@ -311,7 +312,7 @@ class IntroVAE(nn.Module):
         zp = torch.randn_like(z)
         xp = self.output_activation(self.decoder(zp))
 
-        loss_ae = F.mse_loss(xr, x)
+        loss_ae = F.mse_loss(xr, x, reduction='elementwise_mean')
 
         zr_ = self.encoder(xr)
         zr, mur, log_sigma2r = self.reparametrization(zr_)
@@ -329,7 +330,8 @@ class IntroVAE(nn.Module):
 
 
 
-        return encoder_loss, decoder_loss, reg_ae, encoder_adv, decoder_adv, loss_ae, xr, xp
+        return encoder_loss, decoder_loss, reg_ae, encoder_adv, decoder_adv, loss_ae, xr, xp, \
+               regr, regr_ng, regpp, regpp_ng
 
 
 
