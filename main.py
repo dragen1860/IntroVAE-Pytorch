@@ -38,14 +38,6 @@ def main(args):
     print('Total trainable tensors:', num)
     # print(vae)
 
-    viz.line([0], [0], win='encoder_loss', opts=dict(title='encoder_loss'))
-    viz.line([0], [0], win='decoder_loss', opts=dict(title='decoder_loss'))
-    viz.line([0], [0], win='ae_loss', opts=dict(title='ae_loss'))
-    viz.line([0], [0], win='reg_ae', opts=dict(title='reg_ae'))
-    viz.line([0], [0], win='encoder_adv', opts=dict(title='encoder_adv'))
-    viz.line([0], [0], win='decoder_adv', opts=dict(title='decoder_adv'))
-
-
 
     epoch_start = 0
     if args.resume is not None and args.resume != 'None':
@@ -69,6 +61,13 @@ def main(args):
     else:
         print('pre-training and training from scratch...')
 
+    viz.line([0], [epoch_start], win='encoder_loss', opts=dict(title='encoder_loss'))
+    viz.line([0], [epoch_start], win='decoder_loss', opts=dict(title='decoder_loss'))
+    viz.line([0], [epoch_start], win='ae_loss', opts=dict(title='ae_loss'))
+    viz.line([0], [epoch_start], win='reg_ae', opts=dict(title='reg_ae'))
+    viz.line([0], [epoch_start], win='encoder_adv', opts=dict(title='encoder_adv'))
+    viz.line([0], [epoch_start], win='decoder_adv', opts=dict(title='decoder_adv'))
+
 
     # pre-training
     if 50000 - epoch_start > 0:
@@ -83,7 +82,7 @@ def main(args):
 
             encoder_loss, decoder_loss, reg_ae, encoder_adv, decoder_adv, loss_ae, xr, xp = vae(x)
 
-            if epoch_start % 15 == 0:
+            if epoch_start % 50 == 0:
 
                 print(epoch_start, '\t%0.4f\t%0.3f\t\t%0.3f\t\t%0.4f\t\t%0.4f\t\t%0.4f'%(
                     reg_ae.item(), encoder_adv.item(), decoder_adv.item(), loss_ae.item(), encoder_loss.item(),
@@ -97,7 +96,7 @@ def main(args):
                 viz.line([encoder_adv.item()], [epoch_start], win='encoder_adv', update='append')
                 viz.line([decoder_adv.item()], [epoch_start], win='decoder_adv', update='append')
 
-            if epoch_start % 100 == 0:
+            if epoch_start % 200 == 0:
                 x, xr, xp = x[:8], xr[:8], xp[:8]
                 viz.histogram(xr[0].view(-1), win='xr_hist', opts=dict(title='xr_hist'))
                 unnorm_(x, xr, xp)
@@ -133,7 +132,7 @@ def main(args):
 
         encoder_loss, decoder_loss, reg_ae, encoder_adv, decoder_adv, loss_ae, xr, xp = vae(x)
 
-        if epoch % 10 == 0:
+        if epoch % 50 == 0:
 
             print(epoch_start, '\t%0.4f\t%0.3f\t\t%0.3f\t\t%0.4f\t\t%0.4f\t\t%0.4f' % (
                 reg_ae.item(), encoder_adv.item(), decoder_adv.item(), loss_ae.item(), encoder_loss.item(),
@@ -147,7 +146,7 @@ def main(args):
             viz.line([encoder_adv.item()], [epoch], win='encoder_adv', update='append')
             viz.line([decoder_adv.item()], [epoch], win='decoder_adv', update='append')
 
-        if epoch % 50 == 0:
+        if epoch % 200 == 0:
             x, xr, xp = x[:8], xr[:8], xp[:8]
             viz.histogram(xr[0].view(-1), win='xr_hist', opts=dict(title='xr_hist'))
             unnorm_(x, xr, xp)
@@ -169,12 +168,13 @@ def main(args):
 
 
 if __name__ == '__main__':
+
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--imgsz', type=int, default=128, help='imgsz')
     argparser.add_argument('--batchsz', type=int, default=18, help='batch size')
     argparser.add_argument('--z_dim', type=int, default=256, help='hidden latent z dim')
     argparser.add_argument('--epoch', type=int, default=200000, help='epoches')
-    argparser.add_argument('--margin', type=int, default=110, help='margin')
+    argparser.add_argument('--margin', type=int, default=1, help='margin')
     argparser.add_argument('--alpha', type=float, default=0.25, help='alpha * loss_adv')
     argparser.add_argument('--beta', type=float, default=0.5, help='beta * ae_loss')
     argparser.add_argument('--gamma', type=float, default=1., help='gamma * kl(q||p)_loss')
