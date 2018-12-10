@@ -28,6 +28,8 @@ modify `/home/i/dbs` to your specific path, making sure that the `/home/i/dbs/` 
 
 # Training
 
+only tested for CelebA 128x128 exp.
+
 - training curves
 ![](assets/train.png)
 
