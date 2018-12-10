@@ -5,6 +5,7 @@ Pytorch Implementation for NeuraIPS2018 paper:
 
 The rep. contains a basic implementation for IntroVAE. However, due to no official implementation released, some hyperparameters can only be guessed and can not reach the performance as stated in paper.
 
+![](assets/heart.gif)
 
 # HowTo
 1. Download [CelebA](http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html) dataset and extract it as:
