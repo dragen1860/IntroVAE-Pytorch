@@ -1,5 +1,9 @@
 # IntroVAE-Pytorch
 
+Pytorch Implementation for NeuraIPS2018 paper: 
+[IntroVAE: Introspective Variational Autoencoders for Photographic Image Synthesis](https://arxiv.org/abs/1807.06358).
+
+The rep. contains a basic implementation for IntroVAE. However, due to no official implementation released, some hyperparameters can only be guessed and can not reach the performance as stated in paper.
 
 
 # HowTo
